@@ -1,0 +1,175 @@
+---
+title: "Project"
+author: "Chengyan Ji 675789505"
+date: "4/25/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# packages
+library(MASS)
+library(class)
+library(ggplot2)
+library(caret)
+library(kohonen)
+```
+
+# Data
+
+```{r}
+df_train <- read.csv("C:/Users/Kurt Ji/OneDrive/Desktop/STAT542/Project/archive (1)/fashion-mnist_train.csv")
+df_test <- read.csv("C:/Users/Kurt Ji/OneDrive/Desktop/STAT542/Project/archive (1)/fashion-mnist_test.csv")
+```
+
+```{r}
+# visualize sample plots
+clockwise90 = function(a) {t(a[nrow(a):1,])}
+```
+
+```{r}
+# visualize sample plots
+par(mfrow = c(3,5))
+
+names = c('T-shirt/Top','Trouser','Pullover','Dress','Coat','Sandal','Shirt','Sneaker','Bag','Ankle boot')
+for (i in 0:9) {
+  temp = df_train[df_train[,1] == i, ]
+  cloth_1 <- as.matrix(temp[1,-1])
+  cloth_1 <- matrix(cloth_1, nrow = 28, ncol = 28)
+  cloth_1 <- clockwise90(clockwise90(cloth_1))
+  image(cloth_1, col = gray.colors(25), axes = FALSE, main = paste(i, ':', names[i+1]))S
+}
+```
+
+# Run time calculator k= 11 is used
+
+```{r}
+start <- Sys.time()
+
+# get PCs on training set
+pc_train <- princomp(df_train[,-1], cor = TRUE)
+
+# # Use first 50 PCs
+# df_pc_train <- pc_train$scores[,1:50]
+# 
+# # apply PCA onto test data
+# df_pc_test <- predict(pc_train, df_test)[,1:50]
+# 
+# # train KNN and run on test
+# knn.fit.test <- knn(train = df_pc_train, test = df_pc_test, cl = df_train[,1], k = 11)
+
+end <- Sys.time()
+
+end - start
+```
+
+# PCA + KNN
+
+```{r}
+# get PCs on trainign set
+pc_train <- princomp(df_train[,-1], cor = TRUE)
+
+# get variance explained
+sum((pc_train$sdev^2)[1:50]) / 784
+```
+
+```{r}
+par(mar = c(1,1,1,1))
+
+# check PC power
+plot(cumsum((pc_train$sdev^2) / sum(pc_train$sdev^2)))
+```
+
+```{r}
+# Use first 50 PCs
+df_pc_train <- pc_train$scores[,1:50]
+```
+
+```{r}
+# get training labels for ensemble
+label_pc_train <- as.data.frame(cbind(df_train[,1], df_pc_train))
+
+# write to csv so teammate can do ensemble
+write.csv(label_pc_train, "C:/Users/Kurt Ji/OneDrive/Desktop/STAT542/Project/knn_pca_train_pc_label.csv", row.names=FALSE)
+```
+
+```{r}
+# apply PCA onto test data
+df_pc_test <- predict(pc_train, df_test)[,1:50]
+```
+
+```{r}
+# get testing labels for ensemble
+label_pc_test <- as.data.frame(cbind(df_test[,1], df_pc_test))
+
+# write to csv so teammate can do ensemble
+write.csv(label_pc_test, "C:/Users/Kurt Ji/OneDrive/Desktop/STAT542/Project/knn_pca_test_pc_label.csv", row.names=FALSE)
+```
+
+```{r}
+knn.fits_train <- matrix(nrow = 60000, ncol = 1)
+
+# train KNN on train set
+knn.fit <- knn(train = df_pc_train, test = df_pc_train, cl = df_train[,1], k = 11)
+knn.fits_train[1:60000, 1] = knn.fit
+```
+
+```{r}
+# check training accuracy for best k
+knn.fits_train = knn.fits_train - 1
+```
+
+```{r}
+tab <- table(knn.fits_train[,1], df_train[,1])
+print(tab)
+print(sum(diag(tab)) / 60000)
+```
+
+```{r}
+# Try ks
+ks <- c(1:12)
+
+knn.fits <- matrix(nrow = 10000, ncol = length(ks))
+
+knn.fits <- knn.fits - 1
+
+# KNN on test
+for (i in 1:length(ks)) {
+  knn.fit <- knn(train = df_pc_train, test = df_pc_test, cl = df_train[,1], k = ks[i])
+  knn.fits[1:10000, i] = knn.fit
+}
+```
+
+```{r}
+# check accuracy for different ks
+for (i in ks) {
+  tab <- table(knn.fits[,i], df_test[,1])
+  print(tab)
+  print(sum(diag(tab)) / 10000)
+}
+```
+
+```{r}
+# Calculate Sensitivity and specifitivity
+sum(tab[6,])
+643/908
+8735/9000
+```
+
+```{r}
+# write data to teammate so can do ensemble
+label_train <- as.data.frame(cbind(df_train[,1], knn.fits_train-1))
+```
+
+```{r}
+label_test <- as.data.frame(cbind(df_test[,1], knn.fits[,11] + 1))
+```
+
+```{r}
+write.csv(label_train, "C:/Users/Kurt Ji/OneDrive/Desktop/STAT542/Project/knn_pca_train_label.csv", row.names=FALSE)
+write.csv(label_test, "C:/Users/Kurt Ji/OneDrive/Desktop/STAT542/Project/knn_pca_test_label.csv", row.names=FALSE)
+```
