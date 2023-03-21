@@ -131,6 +131,15 @@ print_callback <- callback_lambda(
 )
 ```
 
+`callback_lambda` is a built-in function in the `keras` package. It is used to create custom callbacks for monitoring the training of a neural network model.
+
+The `callback_lambda` function creates a callback that allows you to define a function that will be executed at certain points during the model training process. The function defined by the user is passed as an argument to `callback_lambda` and is executed by the callback during training.
+
+The function defined by the user should take at least two arguments: `epoch` and `logs`. The `epoch` argument is an integer that represents the current epoch of the training process, and the `logs` argument is a list that contains the metrics calculated for the current batch, such as the loss and accuracy.
+
+Using `callback_lambda`, you can define custom functions to do things like printing out the loss and accuracy after each epoch or batch, saving the model weights at certain checkpoints, or adjusting the learning rate based on the performance of the model.
+
+In the example we've been discussing, the on_batch_end argument of `callback_lambda` is used to define a function that prints the loss and accuracy metrics after every 50 batches. This function is then passed as a callback to the fit method of the model, which allows it to be executed during training.
 
 ```{r}
 # Train the model
